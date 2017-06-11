@@ -1,0 +1,249 @@
+<!DOCTYPE html>
+<html>
+<head>
+
+<meta name="viewport" content="width=device-width, initial-scale=1">
+
+<script src="jquery.min.js"></script>
+
+<style>
+.hide {
+    display: none;
+}
+
+#gc {
+    width: 100%;
+    height: 21px;
+    padding-top: 80px;
+    background: lightblue;
+    position: absolute;
+    bottom: 0px;
+    left: 0px;
+    right: 0px;
+}
+/*
+@media {
+#gc {
+    padding-left: 25%;
+    padding-right: 25%;
+}
+}*/
+.g {
+    float: left;
+    width: 21px;
+    height: 21px;
+    display: inline-block;
+    position: relative;
+    border-bottom: 5px solid #3D54B8;
+}
+/*.g::after {
+    content: " ";
+    display: block;
+    height: 100%;
+    border-bottom: 2px solid #3D85B8;
+}*/
+
+.g.avatr {
+    color: white;
+    //background: #3BB095;
+    border-radius: 50% 50% 0 0;
+}
+.g.avatr::after {
+    content: " ";
+    display: block;
+    height: 100%;
+    width: 100%;
+    position: relative;
+    background: #3BB095;
+    border-radius: 50% 50% 3px 3px;
+    bottom: 19px;
+    transition: all 0.25s ease-out;
+}
+.g.avatr.jumpin::after {
+    content: " ";
+    bottom: 44px;
+    background: #2A7D7E;
+}
+
+.g[l="m"] {
+    color: white;
+    background: #2A467E;
+    border-radius: 10% 10% 0 0;
+}
+</style>
+
+<title>JumpyBumpy</title>
+</head>
+<body>
+<p>
+<span S="score"></span>
+<span S="score2"></span>
+<span S="fpsi"></span>
+<span S="speedi2"></span>
+</p>
+
+<div id="gc">
+Loading..
+</div>
+
+<p>
+<button onclick="retry = true;">Retry</button>
+<button class="hide" onclick="init();">Start</button>
+</p>
+
+<script>
+Math.seed = function(s) {
+    return function() {
+        s = Math.sin(s) * 10000; return s - Math.floor(s);
+    };
+};
+
+var gc, ga,
+jumpin, retry = false,
+gX, gXs = 19,
+seedR, seed,
+chances,
+score, score2,
+fps, fpsi,
+speed = 100, speedi, speedi2;
+
+function init(seedR2) {
+    console.log("Startin new game");
+    
+    jumpin = false;
+    retry = false;
+    
+    score = 0;
+    score2 = 0;
+    
+    fps = 15;
+    fpsi = 0;
+    speed = 3;
+    speedi = fps / speed;
+    speedi2 = 0;
+    console.log(fps + " :: " + speed + " :: " + speedi);
+    
+    gc.html('');
+    
+    gc.append('<div class="g avatr">&nbsp;</div>');
+    ga = $('.g.avatr');
+
+    for (var x = 0; x < gXs; x++) {
+        gc.append('<div class="g" l="">&nbsp;</div>');
+    }
+    gX = gXs;
+
+    seedR = seedR2 || parseInt(Math.random() * 100);
+    seed = Math.seed(seedR)();
+    console.log(seed);
+
+    gL();
+}
+
+chances = [
+    {
+        "l": "",
+        "c": 80
+    },
+    {
+        "l": "m",
+        "c": 20
+    }
+];
+var csum = 0;
+for (var i = 0; i < chances.length - 1; i++) {
+    csum += (chances[i].c / 100.0);
+    chances[i].c2 = csum
+}
+
+function gO() {
+    var si = confirm("Seed: "+seedR+"\nScore: "+score+" in "+score2+"s\nPlay again..");
+    if (si) {
+        init(seedR);
+    }
+    else {
+        //mS();
+    }
+}
+
+function setSs() {
+    var ss = ["score", "score2"]; //, "fpsi", "speedi2"];
+    for (var x = 0; x < ss.length; x++) {
+        $('[S="'+ss[x]+'"]').html(eval(ss[x]));
+    }
+}
+
+function gL() {
+    var fg = gc.children().not(ga).first();
+    var fg_l = fg.attr("l");
+    
+    if ((!jumpin && fg_l !== "") || retry) {
+        retry = false;
+        gO();
+        return false;
+    }
+    
+    if (fpsi === 0) {
+        score2++;
+        fpsi = fps;
+    }
+    if (fpsi !== 0) {
+        fpsi--;
+    }
+    
+    if (speedi2 === 0) {
+        speedi2 = speedi;
+        
+        fg.remove();
+        
+        gX++;
+        score++;
+        
+        var r = Math.seed(seed+score)();
+        for (var i = 0; i < chances.length && r >= chances[i].c2; i++);
+        // console.log(r, i);
+        
+        var chnc = chances[i];
+        
+        var lg = gc.children().last();
+        var lg_l = lg.attr("l");
+        
+        var nl = chnc.l;
+        
+        if (lg_l !== "" && nl !== "") {
+            console.log(lg_l);
+            nl = "";
+        }
+        gc.append('<div class="g" l="'+nl+'">&nbsp;</div>');
+    }
+    if (speedi2 !== 0) {
+        speedi2--;
+    }
+    
+    setSs();
+    
+    setTimeout(gL, 1000 / fps);
+}
+
+function jumpL() {
+    if (jumpin) return false;
+    //console.log("hep");
+    ga.addClass("jumpin");
+    jumpin = true;
+    setTimeout(function() {
+        ga.removeClass("jumpin");
+        jumpin = false;
+    }, 1000 / speed + 150);
+}
+
+$(document).ready(function() {
+    gc = $('#gc');
+    
+    gc.on("touchdown mousedown", jumpL);
+    
+    init();
+});
+</script>
+
+</body>
+</html>
