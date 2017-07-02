@@ -1,0 +1,388 @@
+<!DOCTYPE html>
+<html>
+    <head>
+    
+    <style type="text/css">
+    html, body {
+        padding: 0;
+        margin: 0;
+    }
+    
+    #cvs {
+        //width: 100%;
+        //height: 100vh;
+    }
+    </style>
+    
+    </head>
+    
+    <body>
+    
+        <canvas id="cvs" width="500" height="500"></canvas>
+    
+    </body>
+    
+<script type="text/javascript">
+Math.seed = function(s) {
+    return function() {
+    s = Math.sin(s) * 10000; return s - Math.floor(s);
+    };
+};
+
+/*
+arr = [0, 1, 2, 3, 4, 5];
+arr[-1] = -1;
+console.log(arr);
+console.log(arr[-1]);
+*/
+
+var interval;
+
+function init(seedR2) {
+    c = {
+	    "w": cvs.width - 50,
+	    "h": cvs.height - 50,
+	    "rw": cvs.width,
+	    "rh": cvs.height
+	};
+	// wow, 3 richtig tolle gleichungen..... :|
+    c.tSize = c.w / 10;
+	c.wt = c.w / c.tSize,
+    	c.ht = c.h / c.tSize;
+    
+    var csum = 0;
+    for (var i = 0; i < chances.length - 1; i++) {
+	    csum += (chances[i].c / 100.0);
+	    chances[i].c2 = csum;
+	    
+	    var csum2 = 0;
+	    for (var i2 = 0; i2 < chances[i].rsrcs.dT.length - 1; i2++) {
+		    csum2 += (chances[i].rsrcs.dT[i2][1] / 100.0);
+		    chances[i].rsrcs.dT[i2][2] = csum2;
+	    }
+    }
+    
+    inv = {
+        // wood: 4 // 4 * wood
+    };
+    
+    blcks = [
+        
+    ];
+    
+    objs = [
+        
+    ];
+    
+    chrs = [
+        {
+            "n": "Light",
+            "x": c.tSize / 2,
+            "y": c.tSize / 2,
+            "cact": ""
+        }
+    ];
+    
+    var seedR2 = seedR2 || parseInt(Math.random() * 100);
+    seedR = seedR2;
+    seed = Math.seed(seedR)();
+    console.log(seedR2 + " :: " + seed);
+    
+    for (var i = 0; i < c.h; i += c.tSize) {
+	    var ri = Math.seed(seed * (i + 1))();
+	    //console.log(i + " :: " + ri);
+	    
+	    for (var i2 = 0; i2 < c.w; i2 += c.tSize) {
+		    var ri2 = Math.seed(ri * (i2 + 1))();
+		    //console.log(i2 + " :: " + ri2);
+		    
+		    for (var cir = 0; cir < chances.length && ri2 >= chances[cir].c2; cir++);
+		    
+		    var chnc = JSON.parse(JSON.stringify(chances[cir]));
+		    
+		    blcks.push({
+			    "x": i2,
+			    "y": i,
+			    "w": c.tSize,
+			    "h": c.tSize,
+			    "r": ri2,
+			    "chnc": chnc
+		    });
+	    }
+    
+    /*
+    var ris = [];
+    var ri2, ri3, ri4, ri5, ri6, ri7, ri8, ri9;
+    for (var i2 = 2; i2 < 10; i2++) {
+    eval("ri" + i2 + " = Math.seed(ri * " + i2 + ")()");
+    eval("ris[" + i2 + "] = ri" + i2);
+    }
+    
+    blcks.push({
+    "x": ri2 * c.w,
+    "y": ri3 * c.h,
+    "vx": (ri2 < .5 && ri6 > .5 ? ri4 : -ri4) * 10,
+    "vy": (ri3 < .5 && ri6 > .5 ? ri5 : -ri5) * 10,
+    "w": ri6 * 110,
+    "h": ri7 * 55,
+    "c1": (parseInt((ri2 < .5 ? ri2 : ri3) * 255)).toString(16),
+    "c2": (parseInt((ri4 < .5 ? ri4 : ri5) * 255)).toString(16),
+    "c3": (parseInt((ri6 < .5 ? ri6 : ri7) * 255)).toString(16),
+    "ris": ris
+    });
+    */
+    }
+    
+    if (interval)
+        clearInterval(interval);
+    interval = setInterval(update, 1000 / fps);
+}
+
+chances = [
+    {
+        "l": "dirt", // label
+        "clr": "brown", // colour
+        "c": 10, // chance
+        "ds": 0, // "density speed", how fast to travel (0 = fastest, 1 = solid (no travel through))
+        "rsrcs": { // resources
+            "a": -1, // amount (-2 = infinite, -1 = none, 0 = depleted)
+            "cd": 1, // cooldown in seconds, to prevent click-spamming (bringt aba nix, weil a=-1 is
+            "d": 5, // degrade-time in seconds
+            "dT": [ // degrades to..
+                [0, 25], // dirt, 25%
+                [1, 50],
+                [2, 5],
+                [3, 20]
+            ]
+        }
+    },
+    {
+        "l": "grass",
+        "clr": "green",
+        "c": 60,
+        "ds": 0.1,
+        "rsrcs": {
+            "a": 1,
+            "cd": 2,
+            "d": 10,
+            "dT": [
+                [0, 25],
+                [1, 65],
+                [2, 15]
+            ]
+        }
+    },
+    {
+        "l": "wood",
+        "clr": "darkgreen",
+        "c": 15,
+        "ds": 0.5,
+        "rsrcs": {
+            "a": 3,
+            "cd": 4,
+            "d": 30,
+            "dT": [
+                [0, 85],
+                [1, 15]
+            ]
+        }
+    },
+    {
+        "l": "water",
+        "clr": "#052ede",
+        "c": 25,
+        "ds": 1,
+        "rsrcs": {
+            "a": -2,
+            "cd": 2,
+            "d": 70,
+            "dT": [
+                [0, 25],
+                [1, 35],
+                [2, 10],
+                [3, 30]
+            ]
+        }
+    }
+];
+
+fps = 1;
+cldwn = 0;
+
+window.onload = function() {
+    cvs = document.getElementById("cvs");
+    ctx = cvs.getContext("2d");
+    
+    cvs.onclick = function(e) {
+	    var rect = cvs.getBoundingClientRect();
+	    var m = {
+		    "x": e.clientX - rect.left,
+		    "y": e.clientY - rect.top
+	    };
+	    //console.log(m.x + " :: " + m.y);
+	    
+	    var mx1 = (m.x / c.tSize),
+	        mx2 = mx1 - (mx1 % 1),
+	        my1 = (m.y / c.tSize),
+	        my2 = my1 - (my1 % 1),
+	        bI = (my2 * c.ht) + mx2;
+	    
+	    if (blcks[bI] && cldwn === 0) {
+	        var b = blcks[bI];
+	        console.log(mx2 + " :: " + my2 + " :: " + bI + " :: " + b.chnc.l + " :: " + b.chnc.rsrcs.a);
+	        
+	        moveChr(0, bI, "gather");
+	        
+	        var iI = b.chnc.rsrcs.a === -2;
+	        if (b.chnc.rsrcs.a > 0 || iI) {
+	            if (!iI)
+	                b.chnc.rsrcs.a--;
+	            
+	            if (typeof inv[b.chnc.l] === "undefined")
+	                inv[b.chnc.l] = 1;
+	            else
+	                inv[b.chnc.l]++;
+	            
+	            cldwn = b.chnc.rsrcs.cd;
+	        }
+	        blcks[bI] = b;
+	    }
+    };
+    
+    init(2);
+};
+
+fpsi = cntr = 0;
+uDone = false;
+
+/*
+for (var i = 0; i < blcks.length; i++) {
+    var
+    topT = i < c.wt,
+    leftT = (i-10)%10 === 0,
+    rightT = (i+1)%10 === 0,
+    bottomT = i > ((c.wt * c.ht) - c.wt) - 1
+    ;
+    console.log(i+" :: "+topT+" :: "+leftT+" :: "+rightT+" :: "+bottomT);
+}
+*/
+
+acts = {
+    "gather": function(bI) {
+    
+    }
+};
+
+function moveChr(cI, toBi, actI) {
+    if (chrs[cI] && blcks[toBi] && acts[actI]) {
+        var chr = chrs[cI];
+        var b = blcks[toBi];
+        
+        chr.x = b.x + c.tSize / 2;
+        chr.y = b.y + c.tSize / 2;
+    }
+}
+
+function update() {
+    ctx.fillStyle = "black";
+    ctx.fillRect(0, 0, c.rw, c.rh);
+    
+    if (fpsi >= fps) {
+        fpsi = 0;
+        cntr++;
+        if (cldwn > 0)
+            cldwn--;
+        uDone = true;
+    }
+    
+    for (var i = 0; i < blcks.length; i++) {
+        var b = blcks[i];
+        
+        if (uDone) {
+            b.chnc.rsrcs.d--;
+            
+            var
+            topT = i < c.wt,
+            leftT = (i-10)%10 === 0,
+            rightT = (i+1)%10 === 0,
+            bottomT = i > ((c.wt * c.ht) - c.wt) - 1,
+            rid
+            ;
+            rid = (topT ? blcks[i+c.wt].r : 0);
+            rid += (leftT ? blcks[i+1].r : 0);
+            rid += (rightT ? blcks[i-1].r : 0);
+            rid += (bottomT ? blcks[i-c.wt].r : 0);
+            //console.log(i+" :: "+rid);
+            if (!topT && !leftT && !rightT && !bottomT) {
+                //console.log(blcks[i+c.wt].r);
+                //console.log(blcks[i+1].r);
+                //console.log(blcks[i-1].r);
+                //console.log(blcks[i-c.wt].r);
+                
+                rid += blcks[i+c.wt].r + blcks[i+1].r
+                       + blcks[i-1].r + blcks[i-c.wt].r;
+            }
+            
+            b.r = Math.seed(b.r * /* 
+            chnc.rsrcs.d * b.chnc.rsrcs.a * */ rid)();
+            
+            if (b.chnc.rsrcs.d <= 0 || b.chnc.rsrcs.a === 0) {
+                var ri2 = Math.seed(b.r * cntr)();
+                for (var cir = 0; cir < b.chnc.rsrcs.dT.length && ri2 >= b.chnc.rsrcs.dT[cir][2]; cir++);
+                
+                var chnc = JSON.parse(JSON.stringify(chances[b.chnc.rsrcs.dT[cir][0]]));
+                
+                b.r = ri2;
+                b.chnc = chnc;
+            }
+            blcks[i] = b;
+        }
+        
+        ctx.fillStyle = b.chnc.clr;
+        
+        ctx.fillRect(b.x, b.y, b.w, b.h);
+        
+        ctx.fillStyle = "white";
+        ctx.font = "15px Arial";
+        ctx.textAlign = "center";
+        ctx.fillText(b.chnc.rsrcs.a /* + "::" + b.chnc.rsrcs.d */, b.x + b.w/2, b.y + b.h/2);
+    }
+    
+    for (var i = 0; i < chrs.length; i++) {
+        var chr = chrs[i];
+        
+        ctx.fillStyle = "rgba(255, 255, 255, 0.5";
+        ctx.strokeStyle = "20px solid black";
+        ctx.beginPath();
+        ctx.arc(chr.x, chr.y, 10, 0, Math.PI * 2);
+        ctx.stroke();
+        ctx.fill();
+        
+        ctx.fillStyle = "white";
+        // ctx.strokeStyle = "5px solid white";
+        ctx.font = "10px Arial";
+        ctx.textAlign = "center";
+        // ctx.strokeText(chr.n, chr.x, chr.y - 12);
+        ctx.fillText(chr.n, chr.x, chr.y - 12);
+        ctx.closePath();
+    }
+    
+    ctx.fillStyle = "rgba(255, 255, 255, 0.8)";
+    ctx.fillRect(c.w, 0, 50, c.rh);
+    ctx.fillStyle = "black";
+    ctx.font = "10px Arial";
+    ctx.textAlign = "left";
+    ctx.fillText("cd: " + cldwn, c.w + 5, 20);
+    
+    var xc = 1;
+    for (var x in inv){
+        var y = inv[x];
+        ctx.fillText(x + ": " + y, c.w + 5, 20 + (xc * 20));
+        xc++;
+    }
+    
+    fpsi++;
+    uDone = false;
+}
+</script>
+</html>

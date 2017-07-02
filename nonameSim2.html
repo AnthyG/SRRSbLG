@@ -1,0 +1,508 @@
+<!DOCTYPE html>
+<html>
+    <head>
+    
+    <style type="text/css">
+    html, body {
+        padding: 0;
+        margin: 0;
+    }
+    
+    #cvs {
+        //width: 100%;
+        //height: 100vh;
+    }
+    </style>
+    
+    </head>
+    
+    <body>
+    
+        <canvas id="cvs" width="500" height="500"></canvas>
+    
+    </body>
+    
+<script type="text/javascript">
+Math.seed = function(s) {
+    return function() {
+    s = Math.sin(s) * 10000; return s - Math.floor(s);
+    };
+};
+
+/*
+arr = [0, 1, 2, 3, 4, 5];
+arr[-1] = -1;
+console.log(arr);
+console.log(arr[-1]);
+*/
+
+var interval;
+
+function init(seedR2) {
+    c = {
+	    "w": cvs.width - 50,
+	    "h": cvs.height - 50,
+	    "rw": cvs.width,
+	    "rh": cvs.height
+	};
+	// wow, 3 richtig tolle gleichungen..... :|
+    c.tSize = c.w / 10;
+	c.wt = c.w / c.tSize,
+    	c.ht = c.h / c.tSize;
+    
+	chancesRef = {
+	    "dirt": 0,
+	    "grass": 1,
+	    "wood": 2/*,
+	    "water": 3*/
+	};
+	chances = [
+	    {
+	        "l": "dirt", // label
+	        "clr": "#AA8E69", // colour
+	        "c": 10, // chance
+	        "ds": 0, // "density speed", how fast to travel (0 = fastest, 1 = solid (no travel through))
+	        "rsrcs": { // resources
+	            "a": -1, // amount (-2 = infinite, -1 = none, 0 = depleted)
+	            "cd": 1, // cooldown in seconds, to prevent click-spamming (bringt aba nix, weil a=-1 is
+	            "d": 5, // degrade-time in seconds
+	            "dT": { // degrades to..
+	                "dirt": 25, // dirt, 25%
+	                "grass": 50,
+	                "wood": 5,
+	                "water": 20
+	            }
+	        }
+	    },
+	    {
+	        "l": "grass",
+	        "clr": "#8CC152",
+	        "c": 60,
+	        "ds": 0.1,
+	        "rsrcs": {
+	            "a": 1,
+	            "cd": 2,
+	            "d": 10,
+	            "dT": {
+	                "dirt": 25,
+	                "grass": 65,
+	                "wood": 15
+	            }
+	        }
+	    },
+	    {
+	        "l": "wood",
+	        "clr": "#2ABA66",
+	        "c": 15,
+	        "ds": 0.5,
+	        "rsrcs": {
+	            "a": 3,
+	            "cd": 4,
+	            "d": 30,
+	            "dT": {
+	                "dirt": 85,
+	                "grass": 15
+	            }
+	        }
+	    }/*,
+	    {
+	        "l": "water",
+	        "clr": "#052ede",
+	        "c": 25,
+	        "ds": 1,
+	        "rsrcs": {
+	            "a": -2,
+	            "cd": 2,
+	            "d": 70,
+	            "dT": [
+	                [0, 25],
+	                [1, 35],
+	                [2, 10],
+	                [3, 30]
+	            ]
+	        }
+	    }*/
+	];
+	
+	function new_chnc(l, clr, c, ds, rsrcs) {
+	    var exChnc = {
+	        "l": "",
+	        "clr": "",
+	        "c": 0,
+	        "ds": 0,
+	        "rsrcs": {
+	            "a": 0,
+	            "cd": 0,
+	            "d": 0,
+	            "dT": {
+	            
+	            }
+	        }
+	    };
+	    
+	    var validate = function(tO, ptO) {
+	        var nerr = true;
+	        var ptO = (ptO ? ptO + "." : "");
+	        
+	        for (var x in tO) {
+	            var y = typeof tO[x];
+	            
+	            // console.log(ptO + x + " :: " + (eval("typeof " + ptO + x)) + " :: " + y);
+	            if (eval("typeof " + ptO + x + " !== \"" + y + "\"")) {
+	                nerr = false;
+	            } else {
+	                var nerr2 = true;
+	                if (y === "object")
+	                    nerr2 = validate(tO[x], ptO + x);
+	                if (nerr && !nerr2) {
+	                    nerr = nerr2;
+	                    // console.log(x + " :: " + nerr2);
+	                }
+	                
+	                if (nerr) {
+	                    // console.log("exChnc." + ptO + x + " = " + ptO + x);
+	                    eval("exChnc." + ptO + x + " = " + ptO + x);
+	                }
+	            }
+	        }
+	        
+	        return nerr;
+	    }
+	    var nerr = validate(exChnc);
+	    // console.log(nerr);
+	    if (nerr) {
+		    var cRef = chances.push(exChnc) - 1;
+		    // console.log(chances[cRef].l);
+		    chancesRef[exChnc.l] = cRef;
+		}
+	}
+	new_chnc(
+	    "water",
+	    "#3BAFDA",
+	    25,
+	    1,
+	    {
+	        "a": -2,
+	        "cd": 2,
+	        "d": 70,
+	        "dT": {
+	            "dirt": 25,
+	            "grass": 35,
+	            "wood": 10,
+	            "water": 30
+	        }
+	    }
+	);
+    
+    var csum = 0;
+    for (var i = 0; i < chances.length; i++) {
+	    csum += (chances[i].c / 100.0);
+	    chances[i].c2 = csum;
+	    
+	    var csum2 = 0;
+	    /*
+	    for (var i2 = 0; i2 < chances[i].rsrcs.dT.length - 1; i2++) {
+		    csum2 += (chances[i].rsrcs.dT[i2][1] / 100.0);
+		    chances[i].rsrcs.dT[i2][2] = csum2;
+	    }
+	    */
+	    for (var i2 in chances[i].rsrcs.dT) {
+	        var i2c = chances[i].rsrcs.dT[i2];
+	        csum2 += (i2c / 100.0);
+	        chances[i].rsrcs.dT[i2] = csum2;
+	    }
+    }
+    
+    // console.log(chances[chancesRef["grass"]].rsrcs.dT["dirt"]);
+    // console.log(chances[chancesRef["water"]].rsrcs.dT["dirt"]);
+    
+    inv = {
+        // wood: 4 // 4 * wood
+    };
+    
+    blcks = [
+        
+    ];
+    
+    objs = [
+        
+    ];
+    
+    pobjs = [
+        
+    ];
+    
+    chrs = [
+        {
+            "n": "Light",
+            "x": c.tSize / 2,
+            "y": c.tSize / 2,
+            "cact": ""
+        }
+    ];
+    
+    var seedR2 = seedR2 || parseInt(Math.random() * 100);
+    seedR = seedR2;
+    seed = Math.seed(seedR)();
+    console.log(seedR2 + " :: " + seed);
+    
+    var fI = 0;
+    for (var i = 0; i < c.h; i += c.tSize) {
+	    var ri = Math.seed(seed * (i + 1))();
+	    //console.log(i + " :: " + ri);
+	    blcks[fI] = [];
+	    
+	    var fI2 = 0;
+	    for (var i2 = 0; i2 < c.w; i2 += c.tSize) {
+		    var ri2 = Math.seed(ri * (i2 + 1))();
+		    //console.log(i2 + " :: " + ri2);
+		    
+		    for (var cir = 0; cir < chances.length && ri2 >= chances[cir].c2; cir++);
+		    
+		    var chnc = JSON.parse(JSON.stringify(chances[cir]));
+		    
+		    blcks[fI][fI2] = {
+			    "x": i2,
+			    "y": i,
+			    "w": c.tSize,
+			    "h": c.tSize,
+			    "r": ri2,
+			    "chnc": chnc
+		    };
+		    // console.log(i + " :: " + fI + " :: " + i2 + " :: " + fI2);
+		    
+		    fI2++;
+	    }
+	    fI++;
+    }
+    
+    if (interval)
+        clearInterval(interval);
+    interval = setInterval(update, 1000 / fps);
+}
+
+fps = 3600,
+speed = 500000000,
+cldwn = 0,
+fpsi = cntr = 0,
+uDone = false;
+
+window.onload = function() {
+    cvs = document.getElementById("cvs");
+    ctx = cvs.getContext("2d");
+    
+    cvs.onclick = function(e) {
+	    var rect = cvs.getBoundingClientRect();
+	    var m = {
+		    "x": e.clientX - rect.left,
+		    "y": e.clientY - rect.top
+	    };
+	    //console.log(m.x + " :: " + m.y);
+	    
+	    var mx1 = (m.x / c.tSize),
+	        mx2 = mx1 - (mx1 % 1),
+	        my1 = (m.y / c.tSize),
+	        my2 = my1 - (my1 % 1),
+	        bI = (my2 * c.ht) + mx2;
+	    
+	    if (blcks[my2][mx2] && cldwn === 0) {
+	        var b = blcks[my2][mx2];
+	        console.log(my2 + " :: " + mx2 + " :: " + bI + " :: " + b.chnc.l + " :: " + b.chnc.rsrcs.a);
+	        
+	        moveChr(0, my2, mx2, "gather");
+	        
+	        var iI = b.chnc.rsrcs.a === -2;
+	        if (b.chnc.rsrcs.a > 0 || iI) {
+	            if (!iI)
+	                b.chnc.rsrcs.a--;
+	            
+	            if (typeof inv[b.chnc.l] === "undefined")
+	                inv[b.chnc.l] = 1;
+	            else
+	                inv[b.chnc.l]++;
+	            
+	            cldwn = b.chnc.rsrcs.cd;
+	        }
+	        blcks[my2][mx2] = b;
+	    }
+    };
+    
+    init(2);
+};
+
+/*
+for (var i = 0; i < blcks.length; i++) {
+    var
+    topT = i < c.wt,
+    leftT = (i-10)%10 === 0,
+    rightT = (i+1)%10 === 0,
+    bottomT = i > ((c.wt * c.ht) - c.wt) - 1
+    ;
+    console.log(i+" :: "+topT+" :: "+leftT+" :: "+rightT+" :: "+bottomT);
+}
+*/
+
+acts = {
+    "gather": function(byTo, bxTo) {
+    
+    }
+};
+
+function moveChr(cI, byTo, bxTo, actI) {
+    if (chrs[cI] && blcks[byTo][bxTo] && acts[actI]) {
+        var chr = chrs[cI];
+        var b = blcks[byTo][bxTo];
+        
+        chr.x = b.x + c.tSize / 2;
+        chr.y = b.y + c.tSize / 2;
+    }
+}
+
+function update() {
+    ctx.fillStyle = "black";
+    ctx.fillRect(0, 0, c.rw, c.rh);
+    
+    if (fpsi * speed >= fps) {
+        fpsi = 0;
+        cntr++;
+        if (cldwn > 0)
+            cldwn--;
+        uDone = true;
+    }
+    
+    for (var i = 0; i < blcks.length; i++) {
+        var blcksI = blcks[i];
+        for (var i2 = 0; i2 < blcksI.length; i2++) {
+	        var b = blcksI[i2];
+	        
+	        if (uDone) {
+	            b.chnc.rsrcs.d--;
+	            
+	            var
+	            /*
+	            topT = i < c.wt,
+	            leftT = (i-10)%10 === 0,
+	            rightT = (i+1)%10 === 0,
+	            bottomT = i > ((c.wt * c.ht) - c.wt) - 1,
+	            */
+	            topT = i === 0,
+	            leftT = i2 === 0,
+	            rightT = i2 === c.wt - 1,
+	            bottomT = i === c.ht - 1,
+	            rid
+	            ;
+	            
+	            /*
+	            rid = (topT ? blcks[i+c.wt].r : 0);
+	            rid += (leftT ? blcks[i+1].r : 0);
+	            rid += (rightT ? blcks[i-1].r : 0);
+	            rid += (bottomT ? blcks[i-c.wt].r : 0);
+	            */
+	            rid = (topT ? blcks[i+1][i2].r : 0);
+	            rid += (leftT ? blcks[i][i2+1].r : 0);
+	            rid += (rightT ? blcks[i][i2-1].r : 0);
+	            rid += (bottomT ? blcks[i-1][i2].r : 0);
+	            
+	            //console.log(i+" :: "+rid);
+	            if (!topT && !leftT && !rightT && !bottomT) {
+	                //console.log(blcks[i+c.wt].r);
+	                //console.log(blcks[i+1].r);
+	                //console.log(blcks[i-1].r);
+	                //console.log(blcks[i-c.wt].r);
+	                
+	                /*
+	                rid += blcks[i+c.wt].r + blcks[i+1].r
+	                       + blcks[i-1].r + blcks[i-c.wt].r;
+	                */
+	                // console.log(i + " :: " + i2);
+	                rid += blcks[i+1][i2].r
+	                    + blcks[i][i2+1].r
+	                    + blcks[i][i2-1].r
+	                    + blcks[i-1][i2].r;
+	            }
+	            
+	            /*console.log("A: " + b.r + " :: " + b.chnc.rsrcs.d
+	                + " :: " + b.chnc.rsrcs.a + " :: " + rid);*/
+	            b.r = Math.seed(b.r * (b.chnc.rsrcs.d / 100.0 + 1)
+	                * (b.chnc.rsrcs.a + 3) * rid)();
+	            // console.log("A2: " + b.r);
+	            
+	            if (b.chnc.rsrcs.d <= 0 || b.chnc.rsrcs.a === 0) {
+	                var ri2 = Math.seed(b.r * cntr)();
+	                /*
+	                for (var cir = 0; cir < b.chnc.rsrcs.dT.length && ri2 >= b.chnc.rsrcs.dT[cir][2]; cir++);
+	                */
+	                var cir;
+	                for (var cir2 in b.chnc.rsrcs.dT) {
+	                    if (ri2 >= b.chnc.rsrcs.dT[cir2]) {
+	                        // console.log("B: " + i + " :: " + i2 + " :: " + cir);
+	                        continue;
+	                    } else {
+	                        cir = cir2;
+	                        break;
+	                    }
+	                }
+	                /* console.log("C: " + b.r + " :: " + cntr + " :: " + ri2
+	                    + " :: " + b.chnc.rsrcs.dT["dirt"] + " :: " + cir);
+	                */
+	                
+	                var chnc = JSON.parse(JSON.stringify(chances[chancesRef[cir]]));
+	                
+	                b.r = ri2;
+	                b.chnc = chnc;
+	            }
+	            blcks[i][i2] = b;
+	        }
+	        
+	        ctx.fillStyle = b.chnc.clr;
+	        
+	        ctx.fillRect(b.x, b.y, b.w, b.h);
+	        
+	        ctx.fillStyle = "white";
+	        ctx.font = "15px Arial";
+	        ctx.textAlign = "center";
+	        ctx.fillText(b.chnc.rsrcs.a /* + "::" + b.chnc.rsrcs.d */, b.x + b.w/2, b.y + b.h/2);
+	    }
+    }
+    
+    for (var i = 0; i < chrs.length; i++) {
+        var chr = chrs[i];
+        
+        ctx.fillStyle = "rgba(255, 255, 255, 0.5";
+        ctx.strokeStyle = "20px solid black";
+        ctx.beginPath();
+        ctx.arc(chr.x, chr.y, 10, 0, Math.PI * 2);
+        ctx.stroke();
+        ctx.fill();
+        
+        ctx.fillStyle = "white";
+        // ctx.strokeStyle = "5px solid white";
+        ctx.font = "10px Arial";
+        ctx.textAlign = "center";
+        // ctx.strokeText(chr.n, chr.x, chr.y - 12);
+        ctx.fillText(chr.n, chr.x, chr.y - 12);
+        ctx.closePath();
+    }
+    
+    ctx.fillStyle = "rgba(255, 255, 255, 0.8)";
+    ctx.fillRect(c.w, 0, 50, c.rh);
+    ctx.fillStyle = "black";
+    ctx.font = "10px Arial";
+    ctx.textAlign = "left";
+    ctx.fillText("fps: " + fps, c.w + 5, 1 * 20);
+    ctx.fillText("s: " + speed, c.w + 5, 2 * 20);
+    ctx.fillText("cntr: " + cntr, c.w + 5, 3 * 20);
+    ctx.fillText("cd: " + cldwn, c.w + 5, 4 * 20);
+    
+    var yc = 5;
+    for (var x in inv){
+        var y = inv[x];
+        ctx.fillText(x + ": " + y, c.w + 5, 20 + (yc * 20));
+        yc++;
+    }
+    
+    fpsi++;
+    uDone = false;
+}
+</script>
+</html>
