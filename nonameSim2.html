@@ -436,13 +436,6 @@ Math.seed = function(s) {
     };
 };
 
-/*
-arr = [0, 1, 2, 3, 4, 5];
-arr[-1] = -1;
-console.log(arr);
-console.log(arr[-1]);
-*/
-
 var interval;
 
 function init(seedR2) {
@@ -468,32 +461,39 @@ function init(seedR2) {
 	        "l": "dirt", // label
 	        "clr": "#AA8E69", // colour
 	        "c": 10, // chance
-	        "ds": 0, // "density speed", how fast to travel (0 = fastest, 1 = solid (no travel through))
+	        "ds": 1, /* "density speed", how fast to travel
+	        A weight of 0 denotes a wall.
+	        A weight cannot be negative.
+	        A weight cannot be between 0 and 1 (exclusive).
+	        A weight can contain decimal values (greater than 1).
+	        */
 	        "rsrcs": { // resources
 	            "a": -1, // amount (-2 = infinite, -1 = none, 0 = depleted)
-	            "cd": 1, // cooldown in seconds, to prevent click-spamming (bringt aba nix, weil a=-1 is
+	            "cd": 1, // cooldown in seconds, to prevent click-spamming (bringt hier aba nix, weil a=-1 is)
 	            "d": 5, // degrade-time in seconds
 	            "dT": { // degrades to..
-	                "dirt": 25, // dirt, 25%
-	                "grass": 50,
+	                "dirt": 25,
+	                "grass": 40,
 	                "wood": 5,
-	                "water": 20
+	                "water": 15,
+	                "rocks": 15
 	            }
 	        }
 	    },
 	    {
 	        "l": "grass",
 	        "clr": "#8CC152",
-	        "c": 60,
-	        "ds": 0.1,
+	        "c": 55,
+	        "ds": 1.1,
 	        "rsrcs": {
 	            "a": 1,
 	            "cd": 2,
 	            "d": 10,
 	            "dT": {
-	                "dirt": 25,
+	                "dirt": 15,
 	                "grass": 65,
-	                "wood": 15
+	                "wood": 15,
+	                "rocks": 10
 	            }
 	        }
 	    },
@@ -501,22 +501,23 @@ function init(seedR2) {
 	        "l": "wood",
 	        "clr": "#2ABA66",
 	        "c": 15,
-	        "ds": 0.5,
+	        "ds": 1.5,
 	        "rsrcs": {
 	            "a": 3,
 	            "cd": 4,
 	            "d": 30,
 	            "dT": {
-	                "dirt": 85,
-	                "grass": 15
+	                "dirt": 60,
+	                "grass": 25,
+	                "rocks": 15
 	            }
 	        }
 	    }/*,
 	    {
 	        "l": "water",
-	        "clr": "#052ede",
+	        "clr": "#3BAFDA",
 	        "c": 25,
-	        "ds": 1,
+	        "ds": 0,
 	        "rsrcs": {
 	            "a": -2,
 	            "cd": 2,
@@ -586,20 +587,39 @@ function init(seedR2) {
 	new_chnc(
 	    "water",
 	    "#3BAFDA",
-	    25,
-	    1,
+	    13,
+	    100,
 	    {
 	        "a": -2,
 	        "cd": 2,
 	        "d": 70,
 	        "dT": {
 	            "dirt": 25,
-	            "grass": 35,
-	            "wood": 10,
-	            "water": 30
+	            "grass": 32,
+	            "wood": 7,
+	            "water": 20,
+	            "rocks": 16
 	        }
 	    }
 	);
+	new_chnc(
+	    "rocks",
+	    "#AAB2BD",
+	    17,
+	    1.2,
+	    {
+	        "a": 10,
+	        "cd": 3,
+	        "d": 40,
+	        "dT": {
+	            "dirt": 30,
+	            "grass": 30,
+	            "wood": 3,
+	            "water": 7,
+	            "rocks": 30
+	        }
+	    }
+	)
     
     var csum = 0;
     for (var i = 0; i < chances.length; i++) {
@@ -607,12 +627,6 @@ function init(seedR2) {
 	    chances[i].c2 = csum;
 	    
 	    var csum2 = 0;
-	    /*
-	    for (var i2 = 0; i2 < chances[i].rsrcs.dT.length - 1; i2++) {
-		    csum2 += (chances[i].rsrcs.dT[i2][1] / 100.0);
-		    chances[i].rsrcs.dT[i2][2] = csum2;
-	    }
-	    */
 	    for (var i2 in chances[i].rsrcs.dT) {
 	        var i2c = chances[i].rsrcs.dT[i2];
 	        csum2 += (i2c / 100.0);
@@ -691,11 +705,12 @@ function init(seedR2) {
     if (interval)
         clearInterval(interval);
     interval = setInterval(update, 1000 / fps);
+    
+    // console.log("V: " + blcks[2][0].x + " :: " + blcks[2][0].y + " :: " + blcks[2][0].chnc.l);
 }
 
 fps = 30,
 speed = 1.5,
-cldwn = 0,
 fpsi = cntr = 0,
 uDone = false;
 
@@ -717,50 +732,22 @@ window.onload = function() {
 	        my2 = my1 - (my1 % 1),
 	        bI = (my2 * c.ht) + mx2;
 	    
-	    if (blcks[my2][mx2] && cldwn === 0) {
+	    if (blcks[my2][mx2]) {
 	        var b = blcks[my2][mx2];
 	        console.log(my2 + " :: " + mx2 + " :: " + bI + " :: " + b.chnc.l + " :: " + b.chnc.rsrcs.a);
 	        
 	        moveChr(0, my2, mx2, "gather");
-	        
-	        /*
-	        var iI = b.chnc.rsrcs.a === -2;
-	        if (b.chnc.rsrcs.a > 0 || iI) {
-	            if (!iI)
-	                b.chnc.rsrcs.a--;
-	            
-	            if (typeof inv[b.chnc.l] === "undefined")
-	                inv[b.chnc.l] = 1;
-	            else
-	                inv[b.chnc.l]++;
-	            
-	            cldwn = b.chnc.rsrcs.cd;
-	        }
-	        blcks[my2][mx2] = b;
-	        */
 	    }
     };
     
     init(2);
 };
 
-/*
-for (var i = 0; i < blcks.length; i++) {
-    var
-    topT = i < c.wt,
-    leftT = (i-10)%10 === 0,
-    rightT = (i+1)%10 === 0,
-    bottomT = i > ((c.wt * c.ht) - c.wt) - 1
-    ;
-    console.log(i+" :: "+topT+" :: "+leftT+" :: "+rightT+" :: "+bottomT);
-}
-*/
-
 acts = {
     "gather": function(chr, cI) {
         var b = blcks[chr.by][chr.bx];
         
-        console.log("'" + chr.n + "' gathering " + b.chnc.l + " at " + chr.bx + ", " + chr.by);
+        // console.log("'" + chr.n + "' gathering " + b.chnc.l + " at " + chr.bx + ", " + chr.by);
         
         var iI = b.chnc.rsrcs.a === -2;
         if (b.chnc.rsrcs.a > 0 || iI) {
@@ -780,10 +767,25 @@ acts = {
     }
 };
 
+/*
+// Weight can easily be added by increasing the values within the graph, and where 0 is infinite (a wall)
+var graphWithWeight = new Graph([
+	[1,1,5,30],
+	[1,4,1.3,0],
+	[0,0,5,1]
+]);
+var startWithWeight = graphWithWeight.grid[0][0];
+var endWithWeight = graphWithWeight.grid[1][2];
+var resultWithWeight = astar.search(graphWithWeight, startWithWeight, endWithWeight);
+// resultWithWeight is an array containing the shortest path taking into account the weight of a node
+console.log(resultWithWeight[2].x);
+console.log(resultWithWeight[2].y);
+*/
+
 function moveChr(cI, byTo, bxTo, actI) {
     if (chrs[cI] && blcks[byTo][bxTo] && acts[actI]) {
         var chr = chrs[cI];
-        var b = blcks[byTo][bxTo];
+        // var b = blcks[byTo][bxTo];
         
         /*
         var cx1 = (chr.x / c.tSize),
@@ -792,13 +794,33 @@ function moveChr(cI, byTo, bxTo, actI) {
             cy2 = cy1 - (cy1 % 1);
         */
         
-        var graph = new Graph(blcks);
+        var blcks_ds = [];
+        
+        for (var i = 0; i < blcks.length; i++) {
+	        var blcksI = blcks[i];
+	        blcks_ds[i] = [];
+	        for (var i2 = 0; i2 < blcksI.length; i2++) {
+		        var b = blcksI[i2];
+		        blcks_ds[i][i2] = b.chnc.ds;
+		    }
+		}
+		
+		var blcks_ds2 = blcks_ds[0].map(function(col, i) { 
+			return blcks_ds.map(function(row) { 
+				return row[i];
+			});
+		});
+        
+        var graph = new Graph(blcks_ds2);
         var start = graph.grid[chr.bx][chr.by];
         var end = graph.grid[bxTo][byTo];
-        var result = astar.search(graph, start, end);
-        // console.log(result);
+        var result = astar.search(graph, start, end, {
+            "closest": true
+        });
+        
+        // console.log(result[result.length-1].x + " :: " + result[result.length-1].y);
+        
         chr.movearr = result;
-        // result is an array containing the shortest path
         
         /*
         chr.x = b.x + c.tSize / 2;
@@ -818,8 +840,6 @@ function update() {
     if (fpsi * speed >= fps) {
         fpsi = 0;
         cntr++;
-        if (cldwn > 0)
-            cldwn--;
         uDone = true;
     }
     
@@ -832,12 +852,6 @@ function update() {
 	            b.chnc.rsrcs.d--;
 	            
 	            var
-	            /*
-	            topT = i < c.wt,
-	            leftT = (i-10)%10 === 0,
-	            rightT = (i+1)%10 === 0,
-	            bottomT = i > ((c.wt * c.ht) - c.wt) - 1,
-	            */
 	            topT = i === 0,
 	            leftT = i2 === 0,
 	            rightT = i2 === c.wt - 1,
@@ -845,12 +859,6 @@ function update() {
 	            rid
 	            ;
 	            
-	            /*
-	            rid = (topT ? blcks[i+c.wt].r : 0);
-	            rid += (leftT ? blcks[i+1].r : 0);
-	            rid += (rightT ? blcks[i-1].r : 0);
-	            rid += (bottomT ? blcks[i-c.wt].r : 0);
-	            */
 	            rid = (topT ? blcks[i+1][i2].r : 0);
 	            rid += (leftT ? blcks[i][i2+1].r : 0);
 	            rid += (rightT ? blcks[i][i2-1].r : 0);
@@ -858,15 +866,6 @@ function update() {
 	            
 	            //console.log(i+" :: "+rid);
 	            if (!topT && !leftT && !rightT && !bottomT) {
-	                //console.log(blcks[i+c.wt].r);
-	                //console.log(blcks[i+1].r);
-	                //console.log(blcks[i-1].r);
-	                //console.log(blcks[i-c.wt].r);
-	                
-	                /*
-	                rid += blcks[i+c.wt].r + blcks[i+1].r
-	                       + blcks[i-1].r + blcks[i-c.wt].r;
-	                */
 	                // console.log(i + " :: " + i2);
 	                rid += blcks[i+1][i2].r
 	                    + blcks[i][i2+1].r
@@ -929,17 +928,22 @@ function update() {
             
 	        if (chr.movearr.length > 0) {
 	            var b = chr.movearr.shift();
-	            // console.log(b.x + " :: " + b.y);
+	            // console.log(b.y + " :: " + b.x);
 	            
 	            chr.cmove = b;
+	            
+	            // moveChr(i, chr.movearr[chr.movearr.length-1].y, chr.movearr[chr.movearr.length-1].x, chr.cactI);
 	            
 	            chrs[i] = chr;
 	        } else {
 	            chr.cmove = false;
 	            
-	            if (chr.cactI) {
+	            if (chr.cactI && chr.cldwn === 0) {
 	                acts[chr.cactI](chr, i);
 	            }
+	            
+	            if (chr.cldwn > 0)
+	                chr.cldwn--;
 	            
 	            chrs[i] = chr;
 	        }
@@ -947,38 +951,7 @@ function update() {
         
         if (chr.cmove) {
             var b = chr.cmove;
-            
-            /*
-            chr.x = (b.x * c.tSize + c.tSize / 2);
-            chr.y = (b.y * c.tSize + c.tSize / 2);
-            */
-            
-            /*
-            var cx1 = (chr.x / c.tSize),
-	            cx2 = cx1 - (cx1 % 1),
-	            cy1 = (chr.y / c.tSize),
-	            cy2 = cy1 - (cy1 % 1);
-	        
-	        var bcx = b.x - cx2,
-	            bcy = b.y - cy2;
-	        */
-	        
-	        
-	        
-	        
-	        
-	        
-	        
-	        
-	        
-	        
-	        
-	        
-	        
-	        
-	        
-	        
-	        
+
 	        // Direction
 	        var bcx = b.x - chr.bx,
 	            bcy = b.y - chr.by;
@@ -1010,49 +983,7 @@ function update() {
 	        
 	        chr.x += bcx2 / fps * speed;
 	        chr.y += bcy2 / fps * speed;
-	        
-	        
-	        
-	        
-	        
-	        
-	        
-	        
-	        
-	        
-	        
-	        
-	        
-	        
-	        
-	        
-	        
-	        
-	        
-	        
-	        
-	        
-	        
-	        
-	        
-	        
-	        
-	        
-	        
-            
-            /*
-            chr.x += b.x - cx2 * c.tSize / fps * speed;
-            chr.y += b.y - cy2 * c.tSize / fps * speed;
-            */
-            
-            // chr.x += ((b.x - (cx2 /* - c.tSize / 2 */ )) * c.tSize /* + (b.x - cx2 === 0 ? 0 : c.tSize / 2) */ ) / fps;
-            // chr.y += ((b.y - (cy2 /* - c.tSize / 2 */ )) * c.tSize /* + (b.y - cy2 === 0 ? 0 : c.tSize / 2) */ ) / fps;
-            
-            // chr.x += ((bcx > 0 || bcx < 0) ? bcx * c.tSize : 0) / fps;
-            // chr.y += (Math.abs(bcy) > 0 ? bcy * c.tSize : 0) / fps;
-            //chr.x += (bcx > 0 ? c.tSize / 2 : (bcx < 0 ? -c.tSize / 2 : 0)) / fps;
-            //chr.x += (bcy > 0 ? c.tSize / 2 : (bcy < 0 ? -c.tSize / 2 : 0)) / fps;
-            
+
             chrs[i] = chr;
         }
         c.tSize2 = 0;
@@ -1075,15 +1006,17 @@ function update() {
     
     ctx.fillStyle = "rgba(255, 255, 255, 0.8)";
     ctx.fillRect(c.w, 0, 50, c.rh);
+    ctx.fillRect(0, c.h, c.rw, 50);
+    
     ctx.fillStyle = "black";
     ctx.font = "10px Arial";
     ctx.textAlign = "left";
     ctx.fillText("fps: " + fps, c.w + 5, 1 * 20);
     ctx.fillText("s: " + speed, c.w + 5, 2 * 20);
     ctx.fillText("cntr: " + cntr, c.w + 5, 3 * 20);
-    ctx.fillText("cd: " + cldwn, c.w + 5, 4 * 20);
+    // ctx.fillText("cd: " + cldwn, c.w + 5, 4 * 20);
     
-    var yc = 5;
+    var yc = 4;
     for (var x in inv){
         var y = inv[x]; 
         ctx.fillText(x + ": " + y, c.w + 5, 20 + (yc * 20));
